@@ -424,6 +424,30 @@
                         <tfoot id="calSummaryFoot" class="border-t-2 border-gray-200"></tfoot>
                     </table>
                 </div>
+
+                <!-- Discrepancy Report -->
+                <div class="mt-6 card rounded-2xl border border-orange-100 overflow-hidden">
+                    <div
+                        class="bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-3 border-b border-orange-100 flex items-center justify-between">
+                        <h3 class="text-sm font-bold text-orange-700">⚠️ รายการที่ไม่ตรงกับแผน</h3>
+                        <span id="discrepancyCount" class="text-xs text-orange-500"></span>
+                    </div>
+                    <div id="discrepancyEmpty" class="hidden py-8 text-center text-gray-400 text-sm">✅
+                        ไม่มีรายการที่ไม่ตรงกับแผน</div>
+                    <table id="discrepancyTable" class="w-full text-sm hidden">
+                        <thead>
+                            <tr class="bg-orange-50/50 text-left text-xs text-gray-500 border-b border-orange-100">
+                                <th class="py-2.5 px-3 font-semibold">วันที่</th>
+                                <th class="py-2.5 px-3 font-semibold">SKU</th>
+                                <th class="py-2.5 px-3 font-semibold text-center">สถานะ</th>
+                                <th class="py-2.5 px-3 font-semibold text-right">แผน</th>
+                                <th class="py-2.5 px-3 font-semibold text-right">ส่งจริง</th>
+                                <th class="py-2.5 px-3 font-semibold" style="min-width:200px">หมายเหตุ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="discrepancyBody" class="divide-y divide-orange-50"></tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </main>
@@ -467,6 +491,46 @@
         </div>
     </div>
 
+    <!-- Edit Delivery Modal -->
+    <div id="editDelModal" class="fixed inset-0 z-[90] hidden">
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" onclick="closeEditDelModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 mx-4">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">✏️ แก้ไขรายการส่งของ</h3>
+                <input type="hidden" id="editDelId">
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">วันที่</label>
+                        <input id="editDelDate" type="date"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">SKU</label>
+                        <select id="editDelSKU"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">Lot No.</label>
+                        <input id="editDelLot" type="text"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">จำนวน</label>
+                        <input id="editDelQty" type="number" min="0" step="any"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button onclick="closeEditDelModal()"
+                        class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">ยกเลิก</button>
+                    <button onclick="saveEditDelivery()"
+                        class="flex-1 btn-primary px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed bottom-6 right-6 z-[100] hidden">
         <div
@@ -483,6 +547,7 @@
         let _skus = [];
         let _deliveries = [];
         let _plans = [];
+        let _notes = [];
 
         function loadSKUs() { return _skus; }
         function saveSKUs(data) { _skus = data; syncToSheet('SKUs', data); }
@@ -490,6 +555,8 @@
         function saveDeliveries(data) { _deliveries = data; syncToSheet('Deliveries', data); }
         function loadPlans() { return _plans; }
         function savePlans(data) { _plans = data; syncToSheet('Plans', data); }
+        function loadNotes() { return _notes; }
+        function saveNotes(data) { _notes = data; syncToSheet('Notes', data); }
 
         // ===== SYNC TO GOOGLE SHEETS =====
         function syncToSheet(sheetName, data) {
@@ -525,15 +592,17 @@
             if (!GAS_URL) { console.log('GAS_URL not set'); return; }
             try {
                 showToast('กำลังโหลดข้อมูลจาก Google Sheets...', '🔄');
-                const [skus, dels, plans] = await Promise.all([
+                const [skus, dels, plans, notes] = await Promise.all([
                     fetch(GAS_URL + '?action=read&sheet=SKUs').then(r => r.json()),
                     fetch(GAS_URL + '?action=read&sheet=Deliveries').then(r => r.json()),
-                    fetch(GAS_URL + '?action=read&sheet=Plans').then(r => r.json())
+                    fetch(GAS_URL + '?action=read&sheet=Plans').then(r => r.json()),
+                    fetch(GAS_URL + '?action=read&sheet=Notes').then(r => r.json()).catch(() => [])
                 ]);
                 // Normalize dates
                 if (Array.isArray(skus)) _skus = skus.map(s => ({ ...s, month: s.month ? normalizeDate(s.month).substring(0, 7) : '' }));
                 if (Array.isArray(dels)) _deliveries = dels.map(d => ({ ...d, date: normalizeDate(d.date) }));
                 if (Array.isArray(plans)) _plans = plans.map(p => ({ ...p, date: normalizeDate(p.date) }));
+                if (Array.isArray(notes)) _notes = notes;
                 renderAll();
                 showToast('โหลดข้อมูลจาก Google Sheets สำเร็จ (' + _skus.length + ' SKUs)', '☁️');
             } catch (err) {
@@ -741,6 +810,7 @@
         <td class="py-3 px-3 text-gray-600">${d.lot || '-'}</td>
         <td class="py-3 px-3 text-right text-emerald-600 font-medium">${fmt(d.qty)}</td>
         <td class="py-3 px-3 text-center">
+            <button onclick="editDelivery('${d.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 transition-all mr-1">✏️ แก้ไข</button>
             <button onclick="deleteDelivery('${d.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-500 border border-red-200 hover:bg-red-100 transition-all">🗑 ลบ</button>
         </td>
     </tr>`).join('');
@@ -762,7 +832,7 @@
         }
 
         // ===== RENDER ALL =====
-        function renderAll() { renderStats(); renderMonthFilter(); renderDashboard(); renderMaster(); renderDeliveries(); renderSKUSelect(); renderSKUDatalist(); renderCalendar(); }
+        function renderAll() { renderStats(); renderMonthFilter(); renderDashboard(); renderMaster(); renderDeliveries(); renderSKUSelect(); renderSKUDatalist(); renderCalendar(); renderDiscrepancy(); }
 
         // ===== ACTIONS =====
         function addSKU(e) {
@@ -845,6 +915,42 @@
             saveDeliveries(dels);
             showToast('ลบรายการสำเร็จ', '🗑');
             renderAll();
+        }
+
+        function editDelivery(id) {
+            const dels = loadDeliveries();
+            const d = dels.find(x => x.id === id);
+            if (!d) return;
+            document.getElementById('editDelId').value = d.id;
+            document.getElementById('editDelDate').value = d.date;
+            // Populate SKU dropdown
+            const sel = document.getElementById('editDelSKU');
+            const skus = loadSKUs();
+            sel.innerHTML = skus.map(s => `<option value="${s.name}" ${s.name === d.sku ? 'selected' : ''}>${s.name}</option>`).join('');
+            document.getElementById('editDelLot').value = d.lot || '';
+            document.getElementById('editDelQty').value = d.qty;
+            document.getElementById('editDelModal').classList.remove('hidden');
+        }
+
+        function saveEditDelivery() {
+            const id = document.getElementById('editDelId').value;
+            const date = document.getElementById('editDelDate').value;
+            const sku = document.getElementById('editDelSKU').value;
+            const lot = document.getElementById('editDelLot').value.trim();
+            const qty = parseFloat(document.getElementById('editDelQty').value);
+            if (!date || !sku || isNaN(qty)) return;
+            const dels = loadDeliveries();
+            const idx = dels.findIndex(d => d.id === id);
+            if (idx === -1) return;
+            dels[idx] = { ...dels[idx], date, sku, lot, qty };
+            saveDeliveries(dels);
+            closeEditDelModal();
+            showToast('แก้ไขรายการสำเร็จ', '✅');
+            renderAll();
+        }
+
+        function closeEditDelModal() {
+            document.getElementById('editDelModal').classList.add('hidden');
         }
 
         function confirmReset() {
@@ -979,6 +1085,105 @@
                 <td class="py-3 px-3 text-right text-emerald-700 bg-emerald-50/30">${fmt(grandActual)}</td>
                 <td class="py-3 px-3 text-right bg-emerald-50/30 ${grandRemain2 <= 0 ? 'text-emerald-700' : 'text-red-700'}">${fmt(grandRemain2)}</td>
             </tr>`;
+        }
+
+        // ===== DISCREPANCY REPORT =====
+        function renderDiscrepancy() {
+            const plans = loadPlans();
+            const dels = loadDeliveries();
+            const notes = loadNotes();
+            const monthStr = calYear + '-' + String(calMonth + 1).padStart(2, '0');
+            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr);
+            const monthDels = dels.filter(d => d.date.substring(0, 7) === monthStr);
+
+            const rows = [];
+
+            // 1. มีแผนแต่ไม่ได้ส่ง (หรือส่งไม่ครบ)
+            monthPlans.forEach(p => {
+                const matchedDel = monthDels.find(d => d.date === p.date && d.sku === p.sku);
+                const delQty = matchedDel ? Number(matchedDel.qty) : 0;
+                const planQty = Number(p.qty);
+                if (delQty < planQty) {
+                    const key = p.date + '|' + p.sku + '|missed';
+                    const note = notes.find(n => n.key === key);
+                    rows.push({
+                        date: p.date,
+                        sku: p.sku,
+                        type: delQty === 0 ? 'missed' : 'partial',
+                        label: delQty === 0 ? '🔴 มีแผนแต่ไม่ได้ส่ง' : '🟡 ส่งไม่ครบ',
+                        planQty,
+                        actualQty: delQty,
+                        key,
+                        remark: note ? note.remark : ''
+                    });
+                }
+            });
+
+            // 2. ส่งจริงแต่ไม่มีแผน
+            monthDels.forEach(d => {
+                const matchedPlan = monthPlans.find(p => p.date === d.date && p.sku === d.sku);
+                if (!matchedPlan) {
+                    const key = d.date + '|' + d.sku + '|extra';
+                    const note = notes.find(n => n.key === key);
+                    rows.push({
+                        date: d.date,
+                        sku: d.sku,
+                        type: 'extra',
+                        label: '🟠 ส่งโดยไม่มีแผน',
+                        planQty: 0,
+                        actualQty: Number(d.qty),
+                        key,
+                        remark: note ? note.remark : ''
+                    });
+                }
+            });
+
+            // Sort by date
+            rows.sort((a, b) => a.date.localeCompare(b.date));
+
+            const table = document.getElementById('discrepancyTable');
+            const empty = document.getElementById('discrepancyEmpty');
+            const body = document.getElementById('discrepancyBody');
+            const count = document.getElementById('discrepancyCount');
+
+            if (rows.length === 0) {
+                table.classList.add('hidden');
+                empty.classList.remove('hidden');
+                count.textContent = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+            table.classList.remove('hidden');
+            count.textContent = rows.length + ' รายการ';
+
+            body.innerHTML = rows.map(r => {
+                const bgClass = r.type === 'missed' ? 'bg-red-50/50' : r.type === 'partial' ? 'bg-amber-50/50' : 'bg-orange-50/50';
+                return `<tr class="${bgClass} hover:bg-orange-50">
+                    <td class="py-2.5 px-3 text-gray-600 text-xs">${r.date}</td>
+                    <td class="py-2.5 px-3 font-semibold text-gray-800 text-xs">${r.sku}</td>
+                    <td class="py-2.5 px-3 text-center text-xs">${r.label}</td>
+                    <td class="py-2.5 px-3 text-right text-xs font-medium text-blue-600">${r.planQty > 0 ? fmt(r.planQty) : '-'}</td>
+                    <td class="py-2.5 px-3 text-right text-xs font-medium text-emerald-600">${r.actualQty > 0 ? fmt(r.actualQty) : '-'}</td>
+                    <td class="py-2.5 px-3">
+                        <input type="text" value="${r.remark}" placeholder="ใส่หมายเหตุ..."
+                            onchange="saveDiscrepancyNote('${r.key}', this.value)"
+                            class="w-full px-2 py-1.5 text-xs rounded-lg bg-white border border-gray-200 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-200">
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function saveDiscrepancyNote(key, remark) {
+            const notes = loadNotes();
+            const idx = notes.findIndex(n => n.key === key);
+            if (idx >= 0) {
+                notes[idx].remark = remark;
+            } else {
+                notes.push({ key, remark });
+            }
+            saveNotes(notes);
+            showToast('บันทึกหมายเหตุสำเร็จ', '📝');
         }
 
         function calAddPlan(dateStr) {
