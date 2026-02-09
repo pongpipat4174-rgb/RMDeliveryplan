@@ -1093,8 +1093,11 @@
             const dels = loadDeliveries();
             const notes = loadNotes();
             const monthStr = calYear + '-' + String(calMonth + 1).padStart(2, '0');
-            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr);
-            const monthDels = dels.filter(d => d.date.substring(0, 7) === monthStr);
+            const today = new Date();
+            const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            // กรองเฉพาะวันที่ <= วันนี้
+            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr && p.date <= todayStr);
+            const monthDels = dels.filter(d => d.date.substring(0, 7) === monthStr && d.date <= todayStr);
 
             const rows = [];
 
