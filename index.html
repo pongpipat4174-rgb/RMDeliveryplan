@@ -164,6 +164,30 @@
         table tbody tr {
             transition: background 0.15s;
         }
+
+        .plan-cancelled {
+            position: relative;
+            opacity: 0.65;
+        }
+
+        .plan-cancelled::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 2.5px;
+            background: #ef4444;
+            transform: translateY(-50%);
+            pointer-events: none;
+            border-radius: 2px;
+        }
+
+        .revision-badge {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #f59e0b;
+            color: #92400e;
+        }
     </style>
 </head>
 
@@ -449,6 +473,16 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Revision History -->
+            <div class="card rounded-2xl p-5 mt-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-base font-semibold text-gray-800">📝 ประวัติการปรับแผน</h2>
+                    <span id="revisionCount" class="text-xs text-gray-400"></span>
+                </div>
+                <div id="revisionEmpty" class="text-center py-8 text-gray-400 text-sm">✅ ยังไม่มีการปรับแผน</div>
+                <div id="revisionHistory" class="space-y-3 hidden"></div>
+            </div>
         </section>
     </main>
 
@@ -526,6 +560,51 @@
                         class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">ยกเลิก</button>
                     <button onclick="saveEditDelivery()"
                         class="flex-1 btn-primary px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md">บันทึก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revise Plan Modal -->
+    <div id="reviseModal" class="fixed inset-0 z-[90] hidden">
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm" onclick="closeReviseModal()"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md">
+            <div class="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 mx-4">
+                <h3 class="text-lg font-bold text-gray-800 mb-1">✏️ ปรับแผนจัดส่ง</h3>
+                <p class="text-xs text-gray-400 mb-4">แผนเดิมจะถูกขีดฆ่าและเก็บไว้เป็นประวัติ</p>
+                <input type="hidden" id="revisePlanId">
+                <div class="mb-3 p-3 rounded-xl bg-red-50 border border-red-100">
+                    <p class="text-xs font-semibold text-red-600 mb-1">📋 แผนเดิม (จะถูกขีดฆ่า)</p>
+                    <p class="text-sm text-red-700" id="reviseOldInfo">-</p>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">วันที่ใหม่</label>
+                        <input id="reviseNewDate" type="date"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">SKU</label>
+                        <select id="reviseNewSKU"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">จำนวนใหม่</label>
+                        <input id="reviseNewQty" type="number" min="0" step="any"
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 mb-1 block">หมายเหตุการปรับแผน</label>
+                        <textarea id="reviseNote" rows="2" placeholder="เหตุผลในการปรับแผน..."
+                            class="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 resize-none"></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-5">
+                    <button onclick="closeReviseModal()"
+                        class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all">ยกเลิก</button>
+                    <button onclick="saveRevision()"
+                        class="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md text-white"
+                        style="background:linear-gradient(135deg,#f59e0b,#fbbf24)">บันทึกการปรับแผน</button>
                 </div>
             </div>
         </div>
@@ -832,7 +911,7 @@
         }
 
         // ===== RENDER ALL =====
-        function renderAll() { renderStats(); renderMonthFilter(); renderDashboard(); renderMaster(); renderDeliveries(); renderSKUSelect(); renderSKUDatalist(); renderCalendar(); renderDiscrepancy(); }
+        function renderAll() { renderStats(); renderMonthFilter(); renderDashboard(); renderMaster(); renderDeliveries(); renderSKUSelect(); renderSKUDatalist(); renderCalendar(); renderDiscrepancy(); renderRevisionHistory(); }
 
         // ===== ACTIONS =====
         function addSKU(e) {
@@ -996,25 +1075,36 @@
                 // Show plans (colored by SKU) - with checkmark if delivered
                 dayPlans.forEach(p => {
                     const c = getSkuColor(p.sku);
-                    // Check if this plan has matching delivery (same SKU, same date)
-                    const matchedDel = dayDels.find(dl => dl.sku === p.sku);
-                    const delQty = matchedDel ? Number(matchedDel.qty) : 0;
-                    const planQty = Number(p.qty);
-                    const isFull = matchedDel && delQty >= planQty;
-                    const isPartial = matchedDel && delQty > 0 && delQty < planQty;
-                    const icon = isFull ? '✅' : isPartial ? '☑️' : '📦';
-                    const statusText = isFull ? 'ส่งครบ' : isPartial ? `ส่งแล้ว ${fmt(delQty)}/${fmt(planQty)}` : 'แผน';
-                    const borderStyle = isFull ? `border:2px solid #22c55e` : isPartial ? `border:2px solid #eab308` : `border:1px solid ${c.border}`;
 
-                    html += `<div class="text-[10px] leading-tight mb-0.5 px-1.5 py-0.5 rounded truncate font-semibold flex items-center justify-between group" style="background:${c.bg};${borderStyle};color:${c.text}" title="${statusText}: ${p.sku} ${fmt(planQty)}">`;
-                    html += `<span>${icon} ${p.sku} ${fmt(planQty)}</span>`;
-                    html += `<span class="hidden group-hover:inline cursor-pointer ml-1" onclick="event.stopPropagation();deletePlan('${p.id}')">✖</span>`;
-                    html += `</div>`;
+                    if (p.cancelled) {
+                        // Cancelled plan - show with strikethrough
+                        html += `<div class="plan-cancelled text-[10px] leading-tight mb-0.5 px-1.5 py-0.5 rounded truncate font-semibold" style="background:${c.bg};border:1px dashed ${c.border};color:${c.text}" title="❌ ยกเลิก (ปรับแผนครั้งที่ ${p.revision || 1}): ${p.sku} ${fmt(p.qty)}">`;
+                        html += `📦 ${p.sku} ${fmt(p.qty)}`;
+                        html += `</div>`;
+                    } else {
+                        // Active plan
+                        const matchedDel = dayDels.find(dl => dl.sku === p.sku);
+                        const delQty = matchedDel ? Number(matchedDel.qty) : 0;
+                        const planQty = Number(p.qty);
+                        const isFull = matchedDel && delQty >= planQty;
+                        const isPartial = matchedDel && delQty > 0 && delQty < planQty;
+                        const icon = isFull ? '✅' : isPartial ? '☑️' : '📦';
+                        const statusText = isFull ? 'ส่งครบ' : isPartial ? `ส่งแล้ว ${fmt(delQty)}/${fmt(planQty)}` : 'แผน';
+                        const borderStyle = isFull ? `border:2px solid #22c55e` : isPartial ? `border:2px solid #eab308` : `border:1px solid ${c.border}`;
+
+                        html += `<div class="text-[10px] leading-tight mb-0.5 px-1.5 py-0.5 rounded truncate font-semibold flex items-center justify-between group" style="background:${c.bg};${borderStyle};color:${c.text}" title="${statusText}: ${p.sku} ${fmt(planQty)}">`;
+                        html += `<span>${icon} ${p.sku} ${fmt(planQty)}</span>`;
+                        html += `<span class="hidden group-hover:inline cursor-pointer ml-1">`;
+                        html += `<span onclick="event.stopPropagation();openReviseModal('${p.id}')" title="ปรับแผน">✏️</span>`;
+                        html += `<span onclick="event.stopPropagation();deletePlan('${p.id}')" title="ลบ">✖</span>`;
+                        html += `</span>`;
+                        html += `</div>`;
+                    }
                 });
 
                 // Show actual deliveries that don't have matching plan (extra deliveries)
                 dayDels.forEach(dl => {
-                    const matchedPlan = dayPlans.find(p => p.sku === dl.sku);
+                    const matchedPlan = dayPlans.find(p => p.sku === dl.sku && !p.cancelled);
                     if (!matchedPlan) {
                         // Only show if no matching plan
                         html += `<div class="text-[10px] leading-tight mb-0.5 px-1.5 py-0.5 rounded truncate font-semibold" style="background:#dcfce7;border:2px solid #22c55e;color:#166534" title="ส่งจริง: ${dl.sku} ${fmt(dl.qty)}">`;
@@ -1039,7 +1129,7 @@
             }).join('');
 
             // === Banner ===
-            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr);
+            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr && !p.cancelled);
             const monthDels = dels.filter(d => d.date.substring(0, 7) === monthStr);
             const totalPlan = monthPlans.reduce((s, p) => s + Number(p.qty), 0);
             const totalActual = monthDels.reduce((s, d) => s + Number(d.qty), 0);
@@ -1096,7 +1186,7 @@
             const today = new Date();
             const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
             // กรองเฉพาะวันที่ <= วันนี้
-            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr && p.date <= todayStr);
+            const monthPlans = plans.filter(p => p.date.substring(0, 7) === monthStr && p.date <= todayStr && !p.cancelled);
             const monthDels = dels.filter(d => d.date.substring(0, 7) === monthStr && d.date <= todayStr);
 
             const rows = [];
@@ -1215,6 +1305,129 @@
             savePlans(pls);
             showToast('ลบแผนจัดส่งแล้ว', '🗑');
             renderAll();
+        }
+
+        // ===== PLAN REVISION =====
+        function openReviseModal(planId) {
+            const plans = loadPlans();
+            const plan = plans.find(p => p.id === planId);
+            if (!plan) return;
+
+            document.getElementById('revisePlanId').value = planId;
+            document.getElementById('reviseOldInfo').textContent =
+                `${plan.date} | ${plan.sku} | ${fmt(plan.qty)} หน่วย`;
+            document.getElementById('reviseNewDate').value = plan.date;
+            document.getElementById('reviseNewQty').value = plan.qty;
+
+            // Populate SKU dropdown
+            const skus = loadSKUs();
+            const sel = document.getElementById('reviseNewSKU');
+            const skuNames = [...new Set(skus.map(s => s.name))];
+            sel.innerHTML = skuNames.map(s =>
+                `<option value="${s}" ${s === plan.sku ? 'selected' : ''}>${s}</option>`
+            ).join('');
+
+            document.getElementById('reviseNote').value = '';
+            document.getElementById('reviseModal').classList.remove('hidden');
+        }
+
+        function closeReviseModal() {
+            document.getElementById('reviseModal').classList.add('hidden');
+        }
+
+        function saveRevision() {
+            const planId = document.getElementById('revisePlanId').value;
+            const newDate = document.getElementById('reviseNewDate').value;
+            const newSKU = document.getElementById('reviseNewSKU').value;
+            const newQty = parseFloat(document.getElementById('reviseNewQty').value);
+            const note = document.getElementById('reviseNote').value.trim();
+
+            if (!newDate || !newSKU || isNaN(newQty) || newQty <= 0) {
+                showToast('กรุณากรอกข้อมูลให้ครบ', '⚠️');
+                return;
+            }
+
+            const plans = loadPlans();
+            const oldPlanIdx = plans.findIndex(p => p.id === planId);
+            if (oldPlanIdx === -1) return;
+
+            const oldPlan = plans[oldPlanIdx];
+
+            // Count existing revisions for this month
+            const monthStr = oldPlan.date.substring(0, 7);
+            const revisionNum = plans.filter(p =>
+                (p.date.substring(0, 7) === monthStr || (p.cancelledMonth && p.cancelledMonth === monthStr))
+                && p.cancelled
+            ).length + 1;
+
+            // Mark old plan as cancelled
+            plans[oldPlanIdx] = {
+                ...oldPlan,
+                cancelled: true,
+                revision: revisionNum,
+                cancelledAt: new Date().toISOString(),
+                cancelledMonth: monthStr,
+                revisionNote: note || `ปรับแผนครั้งที่ ${revisionNum}`
+            };
+
+            // Create new plan
+            const newPlan = {
+                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                date: newDate,
+                sku: newSKU,
+                qty: newQty,
+                revisedFrom: planId,
+                revision: revisionNum
+            };
+            plans.push(newPlan);
+
+            savePlans(plans);
+            closeReviseModal();
+            showToast(`ปรับแผนครั้งที่ ${revisionNum} สำเร็จ`, '✅');
+            renderAll();
+        }
+
+        function renderRevisionHistory() {
+            const plans = loadPlans();
+            const monthStr = calYear + '-' + String(calMonth + 1).padStart(2, '0');
+            const cancelledPlans = plans.filter(p => p.cancelled && p.date.substring(0, 7) === monthStr)
+                .sort((a, b) => (a.revision || 0) - (b.revision || 0));
+
+            const container = document.getElementById('revisionHistory');
+            const empty = document.getElementById('revisionEmpty');
+            const countEl = document.getElementById('revisionCount');
+
+            if (cancelledPlans.length === 0) {
+                container.classList.add('hidden');
+                empty.classList.remove('hidden');
+                countEl.textContent = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+            container.classList.remove('hidden');
+            countEl.textContent = cancelledPlans.length + ' รายการ';
+
+            container.innerHTML = cancelledPlans.map(p => {
+                const c = getSkuColor(p.sku);
+                const newPlan = plans.find(np => np.revisedFrom === p.id);
+                const newInfo = newPlan
+                    ? `→ ${newPlan.date} | ${newPlan.sku} | ${fmt(newPlan.qty)} หน่วย`
+                    : '(ไม่มีแผนใหม่)';
+
+                return `<div class="flex flex-col gap-1 p-3 rounded-xl border border-amber-100 bg-amber-50/50">
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="revision-badge px-2 py-0.5 rounded-full text-[10px] font-bold">ปรับแผนครั้งที่ ${p.revision || '?'}</span>
+                        <span class="text-[10px] text-gray-400">${p.cancelledAt ? new Date(p.cancelledAt).toLocaleDateString('th-TH') : ''}</span>
+                    </div>
+                    <div class="text-xs text-gray-500 flex items-center gap-1">
+                        <span class="inline-block w-3 h-3 rounded" style="background:${c.bg};border:1px solid ${c.border}"></span>
+                        <span class="line-through text-red-400">${p.date} | ${p.sku} | ${fmt(p.qty)} หน่วย</span>
+                    </div>
+                    <div class="text-xs text-emerald-600 font-medium">${newInfo}</div>
+                    ${p.revisionNote ? `<div class="text-[10px] text-gray-400 mt-0.5">📝 ${p.revisionNote}</div>` : ''}
+                </div>`;
+            }).join('');
         }
 
         function migrateToPlans() {
