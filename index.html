@@ -640,7 +640,21 @@
         function loadDeliveries() { return _deliveries; }
         function saveDeliveries(data) { _deliveries = data; syncToSheet('Deliveries', data); }
         function loadPlans() { return _plans; }
-        function savePlans(data) { _plans = data; syncToSheet('Plans', data); }
+        function normalizePlan(p) {
+            return {
+                id: p.id || '',
+                date: p.date || '',
+                sku: p.sku || '',
+                qty: p.qty || 0,
+                cancelled: p.cancelled ? true : false,
+                revision: p.revision || '',
+                cancelledAt: p.cancelledAt || '',
+                cancelledMonth: p.cancelledMonth || '',
+                revisionNote: p.revisionNote || '',
+                revisedFrom: p.revisedFrom || ''
+            };
+        }
+        function savePlans(data) { _plans = data; syncToSheet('Plans', data.map(normalizePlan)); }
         function loadNotes() { return _notes; }
         function saveNotes(data) { _notes = data; syncToSheet('Notes', data); }
 
@@ -687,7 +701,13 @@
                 // Normalize dates
                 if (Array.isArray(skus)) _skus = skus.map(s => ({ ...s, month: s.month ? normalizeDate(s.month).substring(0, 7) : '' }));
                 if (Array.isArray(dels)) _deliveries = dels.map(d => ({ ...d, date: normalizeDate(d.date) }));
-                if (Array.isArray(plans)) _plans = plans.map(p => ({ ...p, date: normalizeDate(p.date) }));
+                if (Array.isArray(plans)) _plans = plans.map(p => ({
+                    ...p,
+                    date: normalizeDate(p.date),
+                    cancelled: p.cancelled === true || p.cancelled === 'true' || p.cancelled === 'TRUE',
+                    revision: p.revision ? Number(p.revision) : '',
+                    qty: Number(p.qty) || 0
+                }));
                 if (Array.isArray(notes)) _notes = notes;
                 renderAll();
                 showToast('โหลดข้อมูลจาก Google Sheets สำเร็จ (' + _skus.length + ' SKUs)', '☁️');
@@ -1052,8 +1072,8 @@
         let calYear, calMonth;
         (function () { const n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); })();
 
-        function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); }
-        function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); }
+        function calPrev() { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); renderDiscrepancy(); renderRevisionHistory(); }
+        function calNext() { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); renderDiscrepancy(); renderRevisionHistory(); }
 
         function renderCalendar() {
             const MONTH_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
