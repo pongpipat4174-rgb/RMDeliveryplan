@@ -926,7 +926,8 @@
         function renderSKUSelect() {
             const sel = document.getElementById('selectSKU');
             const skus = loadSKUs();
-            sel.innerHTML = '<option value="">-- เลือก SKU --</option>' + skus.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+            const uniqueNames = [...new Set(skus.map(s => s.name))];
+            sel.innerHTML = '<option value="">-- เลือก SKU --</option>' + uniqueNames.map(name => `<option value="${name}">${name}</option>`).join('');
         }
 
         // ===== RENDER SKU DATALIST =====
