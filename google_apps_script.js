@@ -7,7 +7,7 @@
 // 3. ใส่ Header แต่ละแท็บ:
 //    - SKUs:        A1=id, B1=name, C1=month, D1=forecast
 //    - Deliveries:  A1=id, B1=date, C1=sku, D1=lot, E1=qty
-//    - Plans:       A1=id, B1=date, C1=sku, D1=qty
+//    - Plans:       A1=id, B1=date, C1=sku, D1=qty, E1=cancelled, F1=revision, G1=cancelledAt, H1=cancelledMonth, I1=revisionNote, J1=revisedFrom
 // 4. ไปที่ Extensions > Apps Script
 // 5. ลบโค้ดเดิม แล้ววางโค้ดนี้ทั้งหมด
 // 6. กด Deploy > New Deployment > Web App
@@ -93,7 +93,7 @@ function saveData(sheetName, dataArray) {
     ws.getRange(1, 1, 1, headers.length).setValues([headers]);
 
     if (dataArray.length > 0) {
-        const rows = dataArray.map(obj => headers.map(h => obj[h] || ''));
+        const rows = dataArray.map(obj => headers.map(h => obj[h] !== undefined && obj[h] !== null ? obj[h] : ''));
         ws.getRange(2, 1, rows.length, headers.length).setValues(rows);
     }
 
@@ -111,7 +111,7 @@ function addRow(sheetName, rowData) {
     }
 
     const headers = getHeaders(sheetName);
-    const row = headers.map(h => rowData[h] || '');
+    const row = headers.map(h => rowData[h] !== undefined && rowData[h] !== null ? rowData[h] : '');
     ws.appendRow(row);
 
     return { success: true };
@@ -157,7 +157,7 @@ function getHeaders(sheetName) {
     const map = {
         'SKUs': ['id', 'name', 'month', 'forecast'],
         'Deliveries': ['id', 'date', 'sku', 'lot', 'qty'],
-        'Plans': ['id', 'date', 'sku', 'qty']
+        'Plans': ['id', 'date', 'sku', 'qty', 'cancelled', 'revision', 'cancelledAt', 'cancelledMonth', 'revisionNote', 'revisedFrom']
     };
     return map[sheetName] || ['id'];
 }
